@@ -29,7 +29,10 @@ fi
 log "Setting up user $username with sudo permissions..."
 drynt "sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)/\1/g' /etc/sudoers"
 drynt useradd -m -G wheel "$username" # Create unprivileged user
-drynt passwd "$username" # Set password for the new user
+until drynt passwd "$username"; do
+    info "Password change failed, please try again..."
+done
+
 
 # Install paru
 log "Installing paru..."

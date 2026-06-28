@@ -1,0 +1,195 @@
+# my-arch-install
+
+Scripts to automate the installation of a minimal Arch Linux system with LVM on one or more disks.
+
+> **Note:** These scripts are tailored to my specific use case and are not meant to be fully generic. Some settings are hardcoded rather than exposed as options — for example, timezone (`Europe/Madrid`), locales (`en_US.UTF-8`, `es_ES.UTF-8`), and TTY keyboard layout (`es`). Adapt them to your needs before running.
+
+## Overview
+
+| File | Description |
+|---|---|
+| `00-helpers.sh` | Shared helper functions (`log`, `info`, `drynt`) used by all other scripts. Not executed directly. |
+| `01-arch-install.sh` | Main script. Partitions disks, sets up LVM, creates filesystems, mounts them, and installs the base system. |
+| `02-arch-chroot.sh` | Runs automatically inside the chroot. Configures the system (timezone, locale, hostname, initramfs, bootloader). |
+| `03-postinstall.sh` | Run manually after the first boot. Creates a user, grants sudo permissions, and installs `paru`. |
+| `99-arch-install-manual.sh` | **Do not run.** Reference commands for a fully manual installation, covering everything from partitioning up to a desktop environment. Closely tailored to a specific laptop setup. |
+
+## Quick start
+
+From the live installation environment, connect to the Internet first. If the machine uses Wi-Fi, use `iwctl`:
+
+```
+iwctl
+> device list
+> station <device> scan
+> station <device> get-networks
+> station <device> connect <network>
+```
+
+Verify the connection:
+
+```bash
+ping ping.archlinux.org
+```
+
+Then run:
+
+```bash
+curl -O https://raw.githubusercontent.com/shynfia/my-arch-install/refs/heads/main/01-arch-install.sh
+chmod +x 01-arch-install.sh
+./01-arch-install.sh -n <hostname>
+```
+
+`01-arch-install.sh` automatically downloads the other scripts and runs them in sequence. When it finishes, reboot:
+
+```bash
+reboot
+```
+
+After rebooting, log in as `root`, connect to the Internet (e.g. `nmcli device wifi connect <network> password <password>`), and run the last script manually:
+
+```bash
+./03-postinstall.sh -u <username>
+```
+
+---
+
+## Scripts
+
+### `01-arch-install.sh`
+
+Main installation script. Automatically detects system disks (SSDs and HDDs), creates partitions, sets up LVM logical volumes, formats and mounts filesystems, and runs `pacstrap`.
+
+SSDs receive the ESP, XBOOTLDR, and the primary VG (`vg_ssd`). If HDDs are present and there is at least one SSD, a secondary VG (`vg_hdd`) is created with a `data` LV. If only HDDs are found, everything goes onto `vg_hdd` and no `data` LV is created.
+
+**Options:**
+
+| Option | Description | Default |
+|---|---|---|
+| `-e <size>` | EFI System Partition (ESP) size | `512M` |
+| `-b <size>` | Boot partition (XBOOTLDR) size | `512M` |
+| `-r <size>` | Root LV size | `100G` |
+| `-m <size>` | Home LV size (optional). If omitted, root takes all remaining free space. | — |
+| `-w <size>` | Swap LV size | `8G` |
+| `-n <name>` | System hostname (required for the `install` step) | — |
+| `-s <steps>` | Comma-separated list of steps to run (see below) | all |
+| `-p` | Dry run: print commands instead of executing them | — |
+| `-h` | Show help | — |
+
+Sizes must use the format `<number><unit>`, e.g. `512M` or `100G`.
+
+**Available steps** (`-s` option):
+
+| Step | Description |
+|---|---|
+| `partition` | Partition the disks |
+| `lvm` | Create VGs and LVs |
+| `fs` | Format the LVs |
+| `mount` | Mount the filesystems |
+| `install` | Install the base system with `pacstrap` and enter the chroot |
+
+**Examples:**
+
+```bash
+# Full installation
+./01-arch-install.sh -n mymachine
+
+# Dry run — see what would happen without executing anything
+./01-arch-install.sh -n mymachine -p
+
+# Separate home LV and smaller swap
+./01-arch-install.sh -n mymachine -m 50G -w 4G
+
+# Re-partition only (useful if something went wrong)
+./01-arch-install.sh -s partition
+
+# Skip partitioning and LVM, resume from formatting
+./01-arch-install.sh -n mymachine -s fs,mount,install
+```
+
+---
+
+### `02-arch-chroot.sh`
+
+System configuration inside the chroot. Called automatically by `01-arch-install.sh`; no need to invoke it manually during a normal installation.
+
+Tasks performed:
+
+- Timezone (`Europe/Madrid`) and clock sync
+- Locale generation (`en_US.UTF-8`, `es_ES.UTF-8`) and TTY keyboard layout (`es`)
+- Hostname and `/etc/hosts`
+- Adds the `lvm2` hook to `mkinitcpio` and rebuilds the initramfs
+- Sets the `root` password
+- Installs `systemd-boot` and creates the Arch boot entry
+
+**Options:**
+
+| Option | Description |
+|---|---|
+| `-h <hostname>` | System hostname (required) |
+| `-r <device>` | Path to the root device, e.g. `/dev/vg_ssd/root` (required) |
+| `-p` | Dry run |
+
+---
+
+### `03-postinstall.sh`
+
+Run manually after the first boot, logged in as `root`. Requires an active Internet connection to download `paru`.
+
+Tasks performed:
+
+- Enables sudo for the `wheel` group
+- Creates the specified user and adds them to `wheel`
+- Sets the user's password
+- Clones, builds, and installs [`paru`](https://github.com/Morganamilo/paru) (AUR helper)
+
+**Options:**
+
+| Option | Description |
+|---|---|
+| `-u <username>` | Name of the user to create (required) |
+| `-p` | Dry run |
+
+**Usage:**
+
+```bash
+./03-postinstall.sh -u <username>
+```
+
+---
+
+### `99-arch-install-manual.sh`
+
+**Do not run.** Contains the equivalent commented commands for anyone who prefers to perform the installation step by step. Unlike the other scripts, it covers the full setup from partitioning all the way to a KDE Plasma desktop environment with NVIDIA drivers. Note that it is closely tailored to my specific laptop and not intended to be a general-purpose guide.
+
+---
+
+## Disk layout
+
+### With SSD (and optional HDD)
+
+```
+/dev/sdX  (SSD, primary disk)
+├── sdX1  → ESP   (FAT32, mounted at /efi)
+├── sdX2  → boot  (ext4, mounted at /boot)
+└── sdX3  → LVM PV → vg_ssd
+               ├── root  (ext4, mounted at /)
+               ├── home  (ext4, mounted at /home)  ← only with -m
+               └── swap
+
+/dev/sdY  (HDD, optional — only if an SSD is also present)
+└── sdY1  → LVM PV → vg_hdd
+               └── data  (ext4, mounted at /data)
+```
+
+### HDD only
+
+```
+/dev/sdX  (HDD, primary disk)
+├── sdX1  → ESP   (FAT32, mounted at /efi)
+├── sdX2  → boot  (ext4, mounted at /boot)
+└── sdX3  → LVM PV → vg_hdd
+               ├── root  (ext4, mounted at /)
+               ├── home  (ext4, mounted at /home)  ← only with -m
+               └── swap
+```

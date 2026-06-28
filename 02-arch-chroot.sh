@@ -63,7 +63,10 @@ drynt "sed -i '55s/block filesystems/block lvm2 filesystems/' /etc/mkinitcpio.co
 drynt mkinitcpio -P # Rebuild initramfs, lvm2 hook was added in previous script
 
 log "Setting root user password..."
-drynt passwd # Set root password
+until drynt passwd; do
+    info "Password change failed, please try again..."
+done
+
 
 drynt bootctl install # Looks for ESP at /efi and XBOOTLDR at /boot
 drynt "cat > /boot/loader/entries/arch.conf <<EOF
