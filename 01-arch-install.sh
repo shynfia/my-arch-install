@@ -272,25 +272,25 @@ if [[ "$do_lvm" -eq 1 ]]; then
     single_root=$([[ -z "$home_size" ]] && echo 1 || echo 0)
  
     info "Creating LV $LV_SWAP ($swap_size) in $system_vg"
-    drynt lvcreate -Ly "$swap_size" "$system_vg" -n "$LV_SWAP"
+    drynt lvcreate -y -L "$swap_size" "$system_vg" -n "$LV_SWAP"
     
     if [[ "$single_root" -eq 1 ]]; then
         info "Creating LV $LV_ROOT (100%FREE - 256M) in $system_vg"
-        drynt lvcreate -ly 100%FREE "$system_vg" -n "$LV_ROOT"
-        drynt lvreduce -Ly -256M "$system_vg/$LV_ROOT"
+        drynt lvcreate -y -l 100%FREE "$system_vg" -n "$LV_ROOT"
+        drynt lvreduce -L -256M "$system_vg/$LV_ROOT"
     else
         info "Creating LV $LV_ROOT ($root_size) in $system_vg"
-        drynt lvcreate -Ly "$root_size" "$system_vg" -n "$LV_ROOT"
+        drynt lvcreate -y -L "$root_size" "$system_vg" -n "$LV_ROOT"
         info "Creating LV $LV_HOME ($home_size) in $system_vg"
-        drynt lvcreate -Ly "$home_size" "$system_vg" -n "$LV_HOME"
+        drynt lvcreate -y -L "$home_size" "$system_vg" -n "$LV_HOME"
     fi
  
     data_vg_exists=$([[ "$system_vg" == "$VG_SSD" && "${#hdd_disks[@]}" -ne 0 ]] && echo true || false)
  
     if [[ "$data_vg_exists" ]]; then
         info "Creating LV $LV_DATA (100%FREE - 256M) in $VG_HDD"
-        drynt lvcreate -ly 100%FREE "$VG_HDD" -n "$LV_DATA"
-        drynt lvreduce -Ly -256M "$VG_HDD/$LV_DATA"
+        drynt lvcreate -y -l 100%FREE "$VG_HDD" -n "$LV_DATA"
+        drynt lvreduce -L -256M "$VG_HDD/$LV_DATA"
     fi
 fi
  
