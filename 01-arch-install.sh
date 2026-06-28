@@ -171,13 +171,10 @@ find_disks() {
 }
  
 partition_disks() {
-    local is_data_vg="$1"
-    shift
     local disks=("$@")
     local disk
     for disk in "${disks[@]}"; do
-        drynt wipefs -af "$disk"
-        drynt pvscan --cache "$disk"
+        drynt wipefs -af "$disk"*
         if [[ -z "$system_disk" ]]; then
             # ESP
             drynt sgdisk -n 1:0:+"$esp_size" -t 1:ef00 $disk
@@ -186,9 +183,7 @@ partition_disks() {
             system_disk="$disk"
         fi
         # LVM
-        local lvm_label
-        [[ "$is_data_vg" == "true" ]] && lvm_label="Data LVM" || lvm_label="Linux LVM"
-        drynt sgdisk -n 0:0:0 -t 0:8e00 -c 0:"$lvm_label" $disk
+        drynt sgdisk -n 0:0:0 -t 0:8e00 $disk
     done
 }
  
@@ -197,9 +192,8 @@ if [[ "$do_partition" -eq 1 ]]; then
     find_disks
     info "SSDs found: ${ssd_disks[*]:-none}"
     info "HDDs found: ${hdd_disks[*]:-none}"
-    drynt vgchange -an # Disable volume groups
-    partition_disks "false" "${ssd_disks[@]}"
-    partition_disks $([[ -z "$system_disk" ]] && echo "false" || echo "true") "${hdd_disks[@]}"
+    partition_disks "${ssd_disks[@]}"
+    partition_disks "${hdd_disks[@]}"
     drynt partprobe
 fi
  
@@ -269,18 +263,7 @@ fi
  
 if [[ "$do_lvm" -eq 1 ]]; then
     log "Setting up LVM..."
- 
-    if [[ "${#ssd_disks[@]}" -ne 0 ]]; then
-        ssd_pvs=( "${ssd_disks[@]/%/3}" ) # system disk uses partition 3
-        info "Creating VG $VG_SSD with PVs: ${ssd_pvs[*]}"
-    fi
-    if [[ "${#hdd_disks[@]}" -ne 0 ]]; then
-        hdd_pvs=()
-        for disk in "${hdd_disks[@]}"; do
-            [[ "$disk" == "$system_disk" ]] && hdd_pvs+=("${disk}3") || hdd_pvs+=("${disk}1")
-        done
-        info "Creating VG $VG_HDD with PVs: ${hdd_pvs[*]}"
-    fi
+
     setup_lvm_vg "$VG_SSD" "${ssd_disks[@]}"
     setup_lvm_vg "$VG_HDD" "${hdd_disks[@]}"
  
@@ -288,25 +271,26 @@ if [[ "$do_lvm" -eq 1 ]]; then
  
     single_root=$([[ -z "$home_size" ]] && echo 1 || echo 0)
  
+    info "Creating LV $LV_SWAP ($swap_size) in $system_vg"
+    drynt lvcreate -Ly "$swap_size" "$system_vg" -n "$LV_SWAP"
+    
     if [[ "$single_root" -eq 1 ]]; then
         info "Creating LV $LV_ROOT (100%FREE - 256M) in $system_vg"
-        drynt lvcreate -l 100%FREE "$system_vg" -n "$LV_ROOT"
-        drynt lvreduce -L -256M "$system_vg/$LV_ROOT"
+        drynt lvcreate -ly 100%FREE "$system_vg" -n "$LV_ROOT"
+        drynt lvreduce -Ly -256M "$system_vg/$LV_ROOT"
     else
         info "Creating LV $LV_ROOT ($root_size) in $system_vg"
-        drynt lvcreate -L "$root_size" "$system_vg" -n "$LV_ROOT"
+        drynt lvcreate -Ly "$root_size" "$system_vg" -n "$LV_ROOT"
         info "Creating LV $LV_HOME ($home_size) in $system_vg"
-        drynt lvcreate -L "$home_size" "$system_vg" -n "$LV_HOME"
+        drynt lvcreate -Ly "$home_size" "$system_vg" -n "$LV_HOME"
     fi
-    info "Creating LV $LV_SWAP ($swap_size) in $system_vg"
-    drynt lvcreate -L "$swap_size" "$system_vg" -n "$LV_SWAP"
  
     data_vg_exists=$([[ "$system_vg" == "$VG_SSD" && "${#hdd_disks[@]}" -ne 0 ]] && echo true || false)
  
     if [[ "$data_vg_exists" ]]; then
         info "Creating LV $LV_DATA (100%FREE - 256M) in $VG_HDD"
-        drynt lvcreate -l 100%FREE "$VG_HDD" -n "$LV_DATA"
-        drynt lvreduce -L -256M "$VG_HDD/$LV_DATA"
+        drynt lvcreate -ly 100%FREE "$VG_HDD" -n "$LV_DATA"
+        drynt lvreduce -Ly -256M "$VG_HDD/$LV_DATA"
     fi
 fi
  
