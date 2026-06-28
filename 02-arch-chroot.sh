@@ -58,7 +58,8 @@ drynt "echo \"127.0.1.1        $hostname\" >> /etc/hosts" # Resolve own hostname
 drynt systemctl enable systemd-resolved # Enable DNS resolver
 drynt systemctl enable NetworkManager
 
-drynt sed -i '55s/block filesystems/block lvm2 filesystems/' /etc/mkinitcpio.conf
+# Quotes needed so drynt does not think the whitespaces separate different arguments, which would break the sed command
+drynt "sed -i '55s/block filesystems/block lvm2 filesystems/' /etc/mkinitcpio.conf"
 drynt mkinitcpio -P # Rebuild initramfs, lvm2 hook was added in previous script
 
 log "Setting root user password..."
