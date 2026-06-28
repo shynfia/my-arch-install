@@ -393,6 +393,11 @@ if [[ "$do_install" -eq 1 ]]; then
     drynt mkdir -p /mnt/efi/EFI/systemd/drivers/
     drynt cp /usr/share/refind/drivers_x64/ext4_x64.efi /mnt/efi/EFI/systemd/drivers/
  
+    # Make some inline edits with sed, as they would fail in arch-chroot due to -S
+    drynt sed -i 's/^#\(en_US.UTF-8\)/\1/g' /mnt/etc/locale.gen
+    drynt sed -i 's/^#\(es_ES.UTF-8\)/\1/g' /mnt/etc/locale.gen
+    drynt sed -i '55 s/block filesystems/block lvm2 filesystems/' /mnt/etc/mkinitcpio.conf
+
     # Copy helpers file, next scripts will need it
     drynt cp 00-helpers.sh /mnt/
     drynt cp 00-helpers.sh /mnt/root/

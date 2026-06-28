@@ -47,9 +47,7 @@ drynt ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime # Set timezone
 drynt hwclock --systohc # Create /etc/adjtime
 drynt systemctl enable systemd-timesyncd # Enable time sync service
 
-drynt sed -i 's/^#\(en_US.UTF-8\)/\1/g' /etc/locale.gen
-drynt sed -i 's/^#\(es_ES.UTF-8\)/\1/g' /etc/locale.gen
-drynt locale-gen # Generate locales
+drynt locale-gen # Generate locales, desired locales were uncommented in previous script
 drynt "echo \"LANG=en_US.UTF-8\" > /etc/locale.conf" # Set system locale
 drynt "echo \"KEYMAP=es\" > /etc/vconsole.conf" # Set TTY keyboard layout
 
@@ -58,8 +56,7 @@ drynt "echo \"127.0.1.1        $hostname\" >> /etc/hosts" # Resolve own hostname
 drynt systemctl enable systemd-resolved # Enable DNS resolver
 drynt systemctl enable NetworkManager
 
-drynt sed -i '55 s/block filesystems/block lvm2 filesystems/' /etc/mkinitcpio.conf
-drynt mkinitcpio -P # Rebuild initramfs
+drynt mkinitcpio -P # Rebuild initramfs, lvm2 hook was added in previous script
 
 log "Setting root user password..."
 drynt passwd # Set root password
@@ -74,5 +71,5 @@ EOF"
 
 log "Exiting chroot..."
 
-dryntrm 00-helpers.sh
+drynt rm 00-helpers.sh
 self_clean
