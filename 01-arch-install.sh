@@ -407,7 +407,7 @@ if [[ "$do_install" -eq 1 ]]; then
     drynt arch-chroot -S /mnt ./02-arch-chroot.sh $chroot_args
  
     # -- Cleanup --
-    log "All done. After reboot, log in as root and run ./03-postinstall.sh" 
+    log "All done. After reboot, log in as root, connect to the Internet and run ./03-postinstall.sh" 
     drynt rm 00-helpers.sh
     self_clean
 fi
