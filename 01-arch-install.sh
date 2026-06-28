@@ -156,6 +156,13 @@ source ./00-helpers.sh
 ssd_disks=()
 hdd_disks=()
 system_disk=""
+
+VG_SSD="vg_ssd"
+VG_HDD="vg_hdd"
+LV_ROOT="root"
+LV_HOME="home"
+LV_SWAP="swap"
+LV_DATA="data"
  
 find_disks() {
     while read -r name type rota rm; do
@@ -189,6 +196,9 @@ partition_disks() {
  
 if [[ "$do_partition" -eq 1 ]]; then
     log "Partitioning disks...."
+    # Remove existing VGs if they exist to prevent conflicts later
+    drynt vgremove -y "$VG_SSD"
+    drynt vgremove -y "$VG_HDD"
     find_disks
     info "SSDs found: ${ssd_disks[*]:-none}"
     info "HDDs found: ${hdd_disks[*]:-none}"
@@ -198,13 +208,6 @@ if [[ "$do_partition" -eq 1 ]]; then
 fi
  
 # -- LVM setup --
- 
-VG_SSD="vg_ssd"
-VG_HDD="vg_hdd"
-LV_ROOT="root"
-LV_HOME="home"
-LV_SWAP="swap"
-LV_DATA="data"
  
 setup_lvm_vg() {
     local vg_name="$1"
