@@ -47,8 +47,8 @@ drynt ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime # Set timezone
 drynt hwclock --systohc # Create /etc/adjtime
 drynt systemctl enable systemd-timesyncd # Enable time sync service
 
-drynt sed -i 's/^#\(en_US.UTF-8\)/\1/g' /etc/locale.gen
-drynt sed -i 's/^#\(es_ES.UTF-8\)/\1/g' /etc/locale.gen
+drynt "sed -i 's/^#\(en_US.UTF-8\)/\1/g' /etc/locale.gen"
+drynt "sed -i 's/^#\(es_ES.UTF-8\)/\1/g' /etc/locale.gen"
 drynt locale-gen # Generate locales, desired locales were uncommented in previous script
 drynt "echo \"LANG=en_US.UTF-8\" > /etc/locale.conf" # Set system locale
 drynt "echo \"KEYMAP=es\" > /etc/vconsole.conf" # Set TTY keyboard layout

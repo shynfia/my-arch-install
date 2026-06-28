@@ -39,10 +39,12 @@ drynt cd /home/"$username"/paru
 drynt sudo -u "$username" makepkg -si
 drynt cd ..
 drynt rm -rf paru
+drynt rm -rf .cargo
 drynt sudo -u "$username" paru --gendb
 
 # Cleanup
 log "Cleaning up and exiting. You can now log in as user $username"
 
-drynt rm /home/root/00-helpers.sh
+drynt cd
+drynt rm 00-helpers.sh
 self_clean

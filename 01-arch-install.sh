@@ -385,7 +385,7 @@ if [[ "$do_install" -eq 1 ]]; then
     drynt reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
     
     info "Installing..."
-    drynt pacstrap -K /mnt base base-devel linux linux-firmware intel-ucode lvm2 networkmanager sudo git man-db man-pages texinfo
+    drynt pacstrap -K /mnt base base-devel linux linux-firmware intel-ucode lvm2 networkmanager sudo git nano man-db man-pages texinfo
  
     drynt "genfstab -U /mnt >> /mnt/etc/fstab"
  
