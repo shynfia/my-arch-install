@@ -2,8 +2,8 @@
  
 # params: esp, boot, root, home and swap size
 dry_run=0
-esp_size="512M"
-boot_size="512M"
+esp_size="300M"
+boot_size="2G"
 root_size="100G"
 home_size=""   # if empty, no separate home LV; root takes all remaining space
 swap_size="8G"
@@ -208,7 +208,19 @@ if [[ "$do_partition" -eq 1 ]]; then
 fi
  
 # -- LVM setup --
- 
+
+# Builds the path of a partition from its disk and partition number.
+# Handles naming schemes where the disk name already ends in a digit, which
+# need a "p" separator: /dev/sda1, /dev/nvme0n1p1, /dev/mmcblk0p1.
+part_dev() {
+    local disk="$1" part="$2"
+    if [[ "$disk" =~ [0-9]$ ]]; then
+        printf '%sp%s\n' "$disk" "$part"
+    else
+        printf '%s%s\n' "$disk" "$part"
+    fi
+}
+
 setup_lvm_vg() {
     local vg_name="$1"
     shift
@@ -220,9 +232,9 @@ setup_lvm_vg() {
         local disk
         for disk in "${disks[@]}"; do
             if [[ "$disk" == "$system_disk" ]]; then
-                lvm_partitions+=("${disk}3")
+                lvm_partitions+=("$(part_dev "$disk" 3)")
             else
-                lvm_partitions+=("${disk}1")
+                lvm_partitions+=("$(part_dev "$disk" 1)")
             fi
         done
  
@@ -304,8 +316,8 @@ if [[ "$do_fs" -eq 1 && "$do_lvm" -eq 0 ]]; then
 fi
  
 if [[ "$do_fs" -eq 1 ]]; then
-    DEV_ESP="${system_disk}1"
-    DEV_BOOT="${system_disk}2"
+    DEV_ESP="$(part_dev "$system_disk" 1)"
+    DEV_BOOT="$(part_dev "$system_disk" 2)"
     DEV_ROOT="/dev/$system_vg/$LV_ROOT"
     DEV_HOME="/dev/$system_vg/$LV_HOME"
     DEV_SWAP="/dev/$system_vg/$LV_SWAP"
@@ -338,8 +350,8 @@ if [[ "$do_mount" -eq 1 && "$do_fs" -eq 0 ]]; then
 fi
  
 if [[ "$do_mount" -eq 1 ]]; then
-    DEV_ESP="${system_disk}1"
-    DEV_BOOT="${system_disk}2"
+    DEV_ESP="$(part_dev "$system_disk" 1)"
+    DEV_BOOT="$(part_dev "$system_disk" 2)"
     DEV_ROOT="/dev/$system_vg/$LV_ROOT"
     DEV_HOME="/dev/$system_vg/$LV_HOME"
     DEV_SWAP="/dev/$system_vg/$LV_SWAP"
